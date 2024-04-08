@@ -3,7 +3,8 @@
 Simple python script that connects to a mail server via IMAP and SMTP and replies to 
 all emails in the inbox coming from a certain sender address using the Reply-To header.
 Mails that have been replied to are deleted afterwards.
-Adopted to Tilda contact form. recepient address takes from subject header, so you should add address in subject by Tilda settings
+
+Adopted to Tilda contact form. Recepient address takes from subject header, so you should add address in subject by Tilda settings
 
 ### Dependencies
 
