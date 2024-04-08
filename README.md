@@ -3,6 +3,7 @@
 Simple python script that connects to a mail server via IMAP and SMTP and replies to 
 all emails in the inbox coming from a certain sender address using the Reply-To header.
 Mails that have been replied to are deleted afterwards.
+Adopted to Tilda contact form. recepient address takes from subject header, so you should add address in subject by Tilda settings
 
 ### Dependencies
 
@@ -80,7 +81,7 @@ From the shell, run:
 
 Then append to the file (replace "/the/path/to/the/project/folder" by the actual path to these files):
 
-	*/1 * * * * python3 /the/path/to/the/project/folder/run_autoresponder.py
+	*/1 * * * * python3 /the/path/to/the/project/folder/run_autoresponder.py --config-path /the/path/to/your/config/file/autoresponder.config.ini
 
 This will run the script every minute.
 
