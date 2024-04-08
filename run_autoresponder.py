@@ -10,6 +10,7 @@ import re
 import smtplib
 import sys
 from _socket import gaierror
+from email.utils import formatdate
 
 config = None
 config_file_path = "autoresponder.config.ini"
@@ -67,7 +68,8 @@ def initialize_configuration():
             'folders.trash': cast(config_file["mail server settings"]["mailserver.incoming.folders.trash.name"], str),
             'request.from': cast(config_file["mail content settings"]["mail.request.from"], str),
             'reply.subject': cast(config_file["mail content settings"]["mail.reply.subject"], str).strip(),
-            'reply.body': cast(config_file["mail content settings"]["mail.reply.body"], str).strip()
+            'reply.body': cast(config_file["mail content settings"]["mail.reply.body"], str).strip(),
+            'reply.from': cast(config_file["mail content settings"]["mail.reply.from"], str)
         }
     except KeyError as e:
         shutdown_with_error("Configuration file is invalid! (Key not found: " + str(e) + ")")
@@ -99,6 +101,7 @@ def connect_to_imap():
 
 
 def do_connect_to_imap():
+    print('try imap')
     global incoming_mail_server
     incoming_mail_server = imaplib.IMAP4_SSL(config['in.host'], config['in.port'])
     (retcode, capabilities) = incoming_mail_server.login(config['in.user'], config['in.pw'])
@@ -108,6 +111,7 @@ def do_connect_to_imap():
 
 def connect_to_smtp():
     try:
+        print('try smtp')
         do_connect_to_smtp()
     except gaierror:
         shutdown_with_error("SMTP connection failed! Specified host not found.")
@@ -119,8 +123,9 @@ def connect_to_smtp():
 
 def do_connect_to_smtp():
     global outgoing_mail_server
-    outgoing_mail_server = smtplib.SMTP(config['out.host'], config['out.port'])
-    outgoing_mail_server.starttls()
+    outgoing_mail_server = smtplib.SMTP_SSL(config['out.host'], config['out.port'])
+    outgoing_mail_server.ehlo()
+    # outgoing_mail_server.starttls()
     (retcode, capabilities) = outgoing_mail_server.login(config['out.user'], config['out.pw'])
     if not (retcode == 235 or retcode == 250):
         shutdown_with_error("SMTP login failed! Return code: '" + str(retcode) + "'.")
@@ -171,12 +176,14 @@ def process_email(mail):
 
 
 def reply_to_email(mail):
-    receiver_email = email.header.decode_header(mail['Reply-To'])[0][0]
+    receiver_email = email.header.decode_header(mail['Subject'])[0][0]
+    # receiver_email = 'test-4n7irn5aa@srv1.mail-tester.com'
+    print('receiver_email:', receiver_email)
     message = email.mime.text.MIMEText(config['reply.body'])
     message['Subject'] = config['reply.subject']
     message['To'] = receiver_email
-    message['From'] = email.utils.formataddr((
-        cast(email.header.Header(config['display.name'], 'utf-8'), str), config['display.mail']))
+    message['From'] = config['reply.from']
+    message["Date"] = formatdate(localtime=True)
     outgoing_mail_server.sendmail(config['display.mail'], receiver_email, message.as_string())
 
 
@@ -228,13 +235,13 @@ def log_statistics():
     moving_errors = statistics['mails_processed'] - statistics['mails_in_trash'] - statistics['mails_wrong_sender']
     total_warnings = loading_errors + processing_errors + moving_errors
     message = "Executed "
-    message += "without warnings " if total_warnings is 0 else "with " + str(total_warnings) + " warnings "
+    message += "without warnings " if total_warnings == 0 else "with " + str(total_warnings) + " warnings "
     message += "in " + str(run_time.total_seconds()) + " seconds. "
     message += "Found " + str(total_mails) + " emails in inbox"
-    message += ". " if wrong_sender_count is 0 else " with " + str(wrong_sender_count) + " emails from wrong senders. "
+    message += ". " if wrong_sender_count == 0 else " with " + str(wrong_sender_count) + " emails from wrong senders. "
     message += "Processed " + str(statistics['mails_processed']) + \
                " emails, replied to " + str(total_mails - wrong_sender_count) + " emails. "
-    if total_warnings is not 0:
+    if total_warnings != 0:
         message += "Encountered " + str(loading_errors) + " errors while loading emails, " + \
                    str(processing_errors) + " errors while processing emails and " + \
                    str(moving_errors) + " errors while moving emails to trash."
